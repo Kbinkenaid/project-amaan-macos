@@ -584,7 +584,3 @@ struct RealWhoisResultView: View {
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
     }
 }
-
-#Preview {
-    WorkingNetworkToolsView()
-}

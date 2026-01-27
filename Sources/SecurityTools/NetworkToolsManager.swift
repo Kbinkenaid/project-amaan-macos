@@ -139,31 +139,42 @@ public class NetworkToolsManager: ObservableObject {
     private func checkPort(host: String, port: Int) async -> Bool {
         return await withCheckedContinuation { continuation in
             let queue = DispatchQueue(label: "port-check-\(port)")
-            
+            var hasResumed = false
+            let lock = NSLock()
+
+            func safeResume(with value: Bool) {
+                lock.lock()
+                defer { lock.unlock() }
+                if !hasResumed {
+                    hasResumed = true
+                    continuation.resume(returning: value)
+                }
+            }
+
             let connection = NWConnection(
                 host: NWEndpoint.Host(host),
                 port: NWEndpoint.Port(integerLiteral: UInt16(port)),
                 using: .tcp
             )
-            
+
             connection.stateUpdateHandler = { state in
                 switch state {
                 case .ready:
                     connection.cancel()
-                    continuation.resume(returning: true)
-                case .failed(_):
-                    continuation.resume(returning: false)
+                    safeResume(with: true)
+                case .failed(_), .cancelled:
+                    safeResume(with: false)
                 default:
                     break
                 }
             }
-            
+
             connection.start(queue: queue)
-            
-            // Timeout after 3 seconds
-            queue.asyncAfter(deadline: .now() + 3) {
+
+            // Timeout after 2 seconds
+            queue.asyncAfter(deadline: .now() + 2) {
                 connection.cancel()
-                continuation.resume(returning: false)
+                safeResume(with: false)
             }
         }
     }
@@ -193,33 +204,74 @@ public class NetworkToolsManager: ObservableObject {
     }
     
     private func performDNSQuery(_ domain: String) async throws -> [DNSRecord] {
-        // Using system resolver for DNS queries
         var records: [DNSRecord] = []
-        
-        // A record lookup
-        if let addresses = try? await resolveHost(domain) {
-            for address in addresses {
-                records.append(DNSRecord(type: "A", value: address))
+
+        // Use dig command for more reliable DNS lookups
+        let recordTypes = ["A", "AAAA", "MX", "NS", "TXT", "CNAME"]
+
+        for recordType in recordTypes {
+            if let results = try? await runDigCommand(domain: domain, recordType: recordType) {
+                records.append(contentsOf: results)
             }
         }
-        
-        // Add more DNS record types as needed
+
+        // Fallback to system resolver if dig fails
+        if records.isEmpty {
+            if let addresses = try? await resolveHost(domain) {
+                for address in addresses {
+                    records.append(DNSRecord(type: "A", value: address))
+                }
+            }
+        }
+
+        if records.isEmpty {
+            throw SecurityError.networkError("No DNS records found for \(domain)")
+        }
+
         return records
     }
-    
+
+    private func runDigCommand(domain: String, recordType: String) async throws -> [DNSRecord] {
+        let process = Process()
+        let pipe = Pipe()
+
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/dig")
+        process.arguments = ["+short", domain, recordType]
+        process.standardOutput = pipe
+        process.standardError = pipe
+
+        do {
+            try process.run()
+            process.waitUntilExit()
+
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            if let output = String(data: data, encoding: .utf8) {
+                let lines = output.components(separatedBy: .newlines)
+                    .map { $0.trimmingCharacters(in: .whitespaces) }
+                    .filter { !$0.isEmpty }
+
+                return lines.map { DNSRecord(type: recordType, value: $0) }
+            }
+        } catch {
+            // Silently fail for individual record types
+        }
+
+        return []
+    }
+
     private func resolveHost(_ domain: String) async throws -> [String] {
         return try await withCheckedThrowingContinuation { continuation in
             let host = CFHostCreateWithName(nil, domain as CFString).takeRetainedValue()
-            
+
             var result: DarwinBoolean = false
             let addresses = CFHostGetAddressing(host, &result)
-            
+
             if result.boolValue, let addresses = addresses?.takeUnretainedValue() as? [Data] {
                 let ipAddresses = addresses.compactMap { data -> String? in
                     data.withUnsafeBytes { bytes in
                         let sockaddr = bytes.bindMemory(to: sockaddr.self).baseAddress!
                         var hostname = [CChar](repeating: 0, count: Int(NI_MAXHOST))
-                        
+
                         if getnameinfo(sockaddr, socklen_t(data.count),
                                      &hostname, socklen_t(hostname.count),
                                      nil, 0, NI_NUMERICHOST) == 0 {

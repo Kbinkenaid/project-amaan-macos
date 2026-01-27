@@ -268,7 +268,3 @@ struct BreachInfo {
     let description: String
     let dataClasses: [String]
 }
-
-#Preview {
-    WorkingBreachDetectionView()
-}

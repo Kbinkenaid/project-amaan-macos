@@ -458,7 +458,3 @@ struct OperationHistory {
     let output: String
     let timestamp: Date
 }
-
-#Preview {
-    WorkingEncodingToolsView()
-}

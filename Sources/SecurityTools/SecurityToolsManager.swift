@@ -6,18 +6,20 @@ import NIO
 public class SecurityToolsManager: ObservableObject {
     @Published public var isProcessing = false
     @Published public var lastError: SecurityError?
-    
+
     // Tool managers
     public let breachDetector: BreachDetectionManager
     public let networkTools: NetworkToolsManager
     public let encodingTools: EncodingToolsManager
     public let apiKeyManager: APIKeyManager
-    
+    public let virusTotalManager: VirusTotalManager
+
     public init() {
         self.breachDetector = BreachDetectionManager()
         self.networkTools = NetworkToolsManager()
         self.encodingTools = EncodingToolsManager()
         self.apiKeyManager = APIKeyManager()
+        self.virusTotalManager = VirusTotalManager()
     }
 }
 

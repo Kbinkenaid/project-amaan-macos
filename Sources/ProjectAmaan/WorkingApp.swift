@@ -17,8 +17,11 @@ struct WorkingMainView: View {
     
     enum SecurityTool: String, CaseIterable {
         case breachDetection = "Breach Detection"
-        case networkTools = "Network Tools" 
+        case networkTools = "Network Tools"
         case encodingTools = "Encoding Tools"
+        case passwordTools = "Password Tools"
+        case virusTotalTools = "VirusTotal"
+        case settings = "Settings"
     }
     
     var body: some View {
@@ -87,6 +90,12 @@ struct WorkingMainView: View {
                     WorkingNetworkToolsView()
                 case .encodingTools:
                     WorkingEncodingToolsView()
+                case .passwordTools:
+                    PasswordToolsView()
+                case .virusTotalTools:
+                    VirusTotalView()
+                case .settings:
+                    SettingsView()
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -99,14 +108,20 @@ struct WorkingMainView: View {
         case .breachDetection: return "shield.checkered"
         case .networkTools: return "network"
         case .encodingTools: return "chevron.left.forwardslash.chevron.right"
+        case .passwordTools: return "key.fill"
+        case .virusTotalTools: return "viruses"
+        case .settings: return "gearshape.fill"
         }
     }
-    
+
     private func colorForTool(_ tool: SecurityTool) -> Color {
         switch tool {
         case .breachDetection: return .blue
         case .networkTools: return .green
         case .encodingTools: return .orange
+        case .passwordTools: return .purple
+        case .virusTotalTools: return .red
+        case .settings: return .gray
         }
     }
 }
