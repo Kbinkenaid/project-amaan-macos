@@ -160,13 +160,6 @@ This project follows Swift best practices:
 - **Issues**: [GitHub Issues](https://github.com/kbinkenaid/project-amaan-macos/issues)
 - **Security**: Please report security vulnerabilities privately
 
-## 🎯 Roadmap
-
-- [ ] macOS App Store distribution
-- [ ] Additional network tools
-- [ ] Enhanced breach detection features
-- [ ] Dark mode support
-- [ ] Accessibility improvements
 
 ---
 
